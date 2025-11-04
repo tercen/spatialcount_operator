@@ -3,4 +3,5 @@
 .RData
 .Ruserdata
 .idea
-venv/*
+venv/**.pyc
+__pycache__/

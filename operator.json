@@ -25,6 +25,12 @@
             "name": "knn",
             "defaultValue": 10,
             "description": "Number of neighbours for knn-based neighbourhoods"
+        },
+        {
+            "kind": "DoubleProperty",
+            "name": "n_clusters",
+            "defaultValue": 8,
+            "description": "Number of neighbourhood clusters for k-means clustering"
         }
     ]
 }

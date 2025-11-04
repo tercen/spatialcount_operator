@@ -18,36 +18,37 @@ Input|.
 Settings|.
 ---|---
 `method`   | radius or knn, default radius
-`radius`   | number,setting for the size of radius to use, default 30
-`knn`      | integer, setting for the number of centers,  default 10
+`radius`   | number, setting for the size of radius to use, default 30
+`knn`      | integer, setting for the number of neighbors, default 10
+`n_clusters` | integer, number of neighborhood clusters for k-means, default 8
 
 
 Output|.
 ---|---
-`Object` (or label column name) | integer, the cell id from input (creates output relation)
-`name_neigbours`  | text, name of neighbourhood cluster phenotype
-`count_neighbours`| integer, count of that neighbour phenotype for this cell
+`neighbourhood_cluster` | integer, the neighborhood cluster assignment (0 to n_clusters-1)
 
 ### Details
 
-Performs spatial count analysis using scikit-learn's NearestNeighbors algorithm:
-- Implements the spatial_count concept from scimap but using scikit-learn
-- Uses spatial coordinates (X, Y) from single-cell data to perform neighborhood analysis
-- Supports two methods: radius-based or k-nearest neighbors (knn)
-- Automatically deduplicates input rows to ensure each cell is counted once
-- Preserves the original label column name (e.g., `Object`) for proper output relation
+Performs spatial neighborhood analysis using the scimap library:
+1. Counts neighbor phenotypes within a radius or using k-nearest neighbors
+2. Performs k-means clustering on the spatial count results to identify neighborhood regions
+3. Returns one neighborhood cluster assignment per cell
+
+The operator uses:
+- `sm.tl.spatial_count()` - counts phenotype frequencies in neighborhoods
+- `sm.tl.spatial_cluster()` - clusters cells based on their neighborhood composition
 
 ### Example Output
 
-For each cell, the operator returns one row per neighbor phenotype found:
+Each cell gets one neighborhood cluster assignment:
 
 ```
-Object, name_neigbours, count_neighbours
-9.0, c00, 4
-9.0, c15, 3
-9.0, c14, 3
-48.0, c15, 4
-48.0, c11, 3
+Object, neighbourhood_cluster
+9.0, 4
+48.0, 4
+56.0, 4
+75.0, 4
+110.0, 4
 ```
 
-This shows that cell 9.0 has 4 neighbors of phenotype c00, 3 of c15, etc.
+Cells with similar neighborhood compositions are assigned to the same cluster (0 to n_clusters-1).

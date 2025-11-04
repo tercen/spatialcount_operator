@@ -26,6 +26,7 @@ tercenCtx = ctx.TercenContext()
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')
 radius = tercenCtx.operator_property('radius', typeFn=float, default=30.0)
 knn = tercenCtx.operator_property('knn', typeFn=int, default=10)
+n_clusters = tercenCtx.operator_property('n_clusters', typeFn=int, default=8)
 
 # Get all available data from Tercen
 df = tercenCtx.select(df_lib="pandas")
@@ -97,34 +98,17 @@ adata = sm.tl.spatial_count(
     label='spatial_count'
 )
 
-# Extract results from adata.uns['spatial_count']
-spatial_count_df = adata.uns['spatial_count']
-
-# Merge with original data to get .ci and .ri back
-spatial_count_df = spatial_count_df.merge(
-    obs_data[[label_col, '.ci', '.ri']], 
-    left_index=True, 
-    right_index=True,
-    how='left'
+# Cluster the spatial_count results using k-means to identify neighbourhood regions
+adata = sm.tl.spatial_cluster(
+    adata, 
+    df_name='spatial_count', 
+    method='kmeans', 
+    k=n_clusters, 
+    label='neighbourhood_cluster'
 )
 
-# Reshape from wide to long format for Tercen
-# The spatial_count result has columns for each phenotype
-phenotype_cols = [col for col in spatial_count_df.columns if col not in [label_col, '.ci', '.ri']]
-
-results = []
-for idx, row in spatial_count_df.iterrows():
-    for phenotype in phenotype_cols:
-        results.append({
-            '.ci': row['.ci'],
-            '.ri': row['.ri'],
-            label_col: row[label_col],
-            'name_neigbours': phenotype,
-            'count_neighbours': float(row[phenotype])
-        })
-
-# Create result dataframe
-result_df = pd.DataFrame(results)
+# Extract the neighbourhood cluster assignments from adata.obs
+result_df = adata.obs[[label_col, '.ci', '.ri', 'neighbourhood_cluster']].copy()
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)

@@ -52,25 +52,4 @@ jobs:
             # github_pat=${{ secrets.GH_PAT }}
       - name: Test dependencies in container
         run: |
-          docker run --rm ${{ steps.meta.outputs.tags }} python3 -c "
-          import sys
-          print('Testing dependencies...')
-          try:
-              import numpy as np
-              print('✓ numpy version:', np.__version__)
-              import pandas as pd
-              print('✓ pandas version:', pd.__version__)
-              import anndata as ad
-              print('✓ anndata version:', ad.__version__)
-              import scimap as sm
-              print('✓ scimap version:', sm.__version__)
-              print('✓ sm.tl available:', hasattr(sm, 'tl'))
-              print('✓ sm.tl.spatial_count available:', hasattr(sm.tl, 'spatial_count'))
-              print('✓ sm.tl.spatial_cluster available:', hasattr(sm.tl, 'spatial_cluster'))
-              from tercen.client import context as ctx
-              print('✓ tercen client imported')
-              print('All dependencies OK!')
-          except Exception as e:
-              print('✗ Dependency test failed:', e)
-              sys.exit(1)
-          "
+          docker run --rm --entrypoint python3 ${{ steps.meta.outputs.tags }} -c "import sys; import numpy as np; import pandas as pd; import anndata as ad; import scimap as sm; from tercen.client import context as ctx; print('✓ All dependencies OK'); print('✓ scimap version:', sm.__version__); print('✓ sm.tl.spatial_count:', hasattr(sm.tl, 'spatial_count')); print('✓ sm.tl.spatial_cluster:', hasattr(sm.tl, 'spatial_cluster'))"

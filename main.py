@@ -91,6 +91,8 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
         if len(neigh) == 0:
             # No neighbors found
             results.append({
+                '.ci': ci,
+                '.ri': ri,
                 label_col: cell_label,
                 'name_neigbours': None,
                 'count_neighbours': 0
@@ -103,6 +105,8 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
         
         for phenotype, count in counts.items():
             results.append({
+                '.ci': ci,
+                '.ri': ri,
                 label_col: cell_label,
                 'name_neigbours': phenotype,
                 'count_neighbours': int(count)

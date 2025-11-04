@@ -10,8 +10,6 @@ import numpy as np
 import pandas as pd
 import anndata as ad
 import scimap as sm
-import scimap.tl
-import scimap.pl
 from tercen.client import context as ctx
 
 # For local testing, uncomment and provide your credentials:

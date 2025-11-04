@@ -50,3 +50,6 @@ jobs:
           # A PAT is needed for this action, GITHUB_TOKEN cannot get relevant permission 
           # secrets: |
             # github_pat=${{ secrets.GH_PAT }}
+      - name: Test scimap installation in container
+        run: |
+          docker run --rm ${{ steps.meta.outputs.tags }} python3 -c "import scimap as sm; print('✓ scimap version:', sm.__version__); print('✓ sm.tl.spatial_count available:', hasattr(sm.tl, 'spatial_count')); print('✓ sm.tl.spatial_cluster available:', hasattr(sm.tl, 'spatial_cluster'))"

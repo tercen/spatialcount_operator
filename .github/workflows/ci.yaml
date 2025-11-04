@@ -50,6 +50,27 @@ jobs:
           # A PAT is needed for this action, GITHUB_TOKEN cannot get relevant permission 
           # secrets: |
             # github_pat=${{ secrets.GH_PAT }}
-      - name: Test scimap installation in container
+      - name: Test dependencies in container
         run: |
-          docker run --rm ${{ steps.meta.outputs.tags }} python3 -c "import scimap as sm; print('✓ scimap version:', sm.__version__); print('✓ sm.tl.spatial_count available:', hasattr(sm.tl, 'spatial_count')); print('✓ sm.tl.spatial_cluster available:', hasattr(sm.tl, 'spatial_cluster'))"
+          docker run --rm ${{ steps.meta.outputs.tags }} python3 -c "
+          import sys
+          print('Testing dependencies...')
+          try:
+              import numpy as np
+              print('✓ numpy version:', np.__version__)
+              import pandas as pd
+              print('✓ pandas version:', pd.__version__)
+              import anndata as ad
+              print('✓ anndata version:', ad.__version__)
+              import scimap as sm
+              print('✓ scimap version:', sm.__version__)
+              print('✓ sm.tl available:', hasattr(sm, 'tl'))
+              print('✓ sm.tl.spatial_count available:', hasattr(sm.tl, 'spatial_count'))
+              print('✓ sm.tl.spatial_cluster available:', hasattr(sm.tl, 'spatial_cluster'))
+              from tercen.client import context as ctx
+              print('✓ tercen client imported')
+              print('All dependencies OK!')
+          except Exception as e:
+              print('✗ Dependency test failed:', e)
+              sys.exit(1)
+          "

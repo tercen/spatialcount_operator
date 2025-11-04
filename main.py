@@ -59,6 +59,9 @@ df['colors'] = df[cluster_col]
 # This handles cases where the same cell appears multiple times in the input
 df_unique = df.drop_duplicates(subset=[label_col, '.ci', '.ri'], keep='first')
 
+# Get all unique phenotypes across the dataset
+all_phenotypes = df_unique['colors'].unique()
+
 # Compute spatial counts per image group (.ci, .ri represent column/row grouping in crosstab)
 # Within each group, we analyze spatial neighbors for each cell
 results = []
@@ -88,22 +91,17 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
         # Use the actual label value from the input data
         cell_label = group_reset.iloc[i][label_col]
         
-        if len(neigh) == 0:
-            # No neighbors found
-            results.append({
-                '.ci': ci,
-                '.ri': ri,
-                label_col: cell_label,
-                'name_neigbours': None,
-                'count_neighbours': 0.0
-            })
-            continue
-        
         # Get phenotypes of neighbors
-        neigh_phenotypes = group_reset.iloc[neigh]['colors']
+        if len(neigh) == 0:
+            neigh_phenotypes = pd.Series([], dtype=object)
+        else:
+            neigh_phenotypes = group_reset.iloc[neigh]['colors']
+        
         counts = neigh_phenotypes.value_counts()
         
-        for phenotype, count in counts.items():
+        # Add a row for each possible phenotype (with count 0 if not found)
+        for phenotype in all_phenotypes:
+            count = counts.get(phenotype, 0)
             results.append({
                 '.ci': ci,
                 '.ri': ri,

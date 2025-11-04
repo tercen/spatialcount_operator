@@ -3,9 +3,6 @@
 	"name": "Tercen Operator Runtime",
   	"image": "tercen/tercen-code-py39:3.9.17-3",
 
-	// Load environment variables from .env file for Tercen authentication
-	"runArgs": [ "--env-file", "${localWorkspaceFolder}/.env" ],
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 

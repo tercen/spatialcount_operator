@@ -21,7 +21,7 @@
             "description": "Radius (in same units as X/Y) used for radius-based neighbourhoods"
         },
         {
-            "kind": "IntegerProperty",
+            "kind": "DoubleProperty",
             "name": "knn",
             "defaultValue": 10,
             "description": "Number of neighbours for knn-based neighbourhoods"

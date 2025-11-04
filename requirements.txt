@@ -1,1 +1,6 @@
-git+https://github.com/tercen/tercen_python_client@0.11.3
+
+git+https://github.com/tercen/tercen_python_client@0.12.12
+# dependencies used by the operator
+numpy
+pandas
+scikit-learn

@@ -1,36 +1,30 @@
 {
-    "name": "Template Python operator",
-    "description": "Mean operator implemented in Python",
-    "tags": ["template"],
+    "name": "Spatial Count Operator",
+    "description": "Counts the frequency of neighbour phenotypic clusters per cell (spatial count).",
+    "tags": ["spatial","scimap","neighbours"],
     "authors": ["tercen"],
-    "urls": ["https://github.com/tercen/template-python-operator"],
-    "container":"ghcr.io/tercen/template-python-operator:latest",
+    "urls": ["https://github.com/tercen/spatialcount_operator"],
+    "container":"ghcr.io/tercen/spatialcount_operator:0.0.1",
     "properties": [
         {
-            "kind": "DoubleProperty",
-            "name": "Property1",
-            "defaultValue": 42.0,
-            "description": "Example Double Property"
-        },
-        {
-            "kind": "StringProperty",
-            "name": "Property2",
-            "defaultValue": "42",
-            "description": "Example String Property"
-        },
-        {
-            "kind": "BooleanProperty",
-            "name": "Property3",
-            "defaultValue": true,
-            "description": "Example Boolean Property"
-        },
-        {
             "kind": "EnumeratedProperty",
-            "isSingleSelection":true,
-            "name": "Property4",
-            "defaultValue": "element2",
-            "values": ["element1", "element2", "element3"],
-            "description": "Example Enumerated Property"
+            "isSingleSelection": true,
+            "name": "method",
+            "defaultValue": "radius",
+            "values": ["radius", "knn"],
+            "description": "Neighbourhood method: radius or knn"
+        },
+        {
+            "kind": "DoubleProperty",
+            "name": "radius",
+            "defaultValue": 30.0,
+            "description": "Radius (in same units as X/Y) used for radius-based neighbourhoods"
+        },
+        {
+            "kind": "IntegerProperty",
+            "name": "knn",
+            "defaultValue": 10,
+            "description": "Number of neighbours for knn-based neighbourhoods"
         }
     ]
 }

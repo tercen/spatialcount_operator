@@ -1,0 +1,26 @@
+// Tercen Operator Runtime development container specification.
+{
+	"name": "Tercen Operator Runtime",
+  	"image": "tercen/tercen-code-py39:3.9.17-3",
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Configure tool-specific properties.
+    "customizations": {
+        "vscode": {
+            "extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-toolsai.jupyter",
+				"ms-toolsai.jupyter-keymap",
+                "github.copilot",
+                "github.copilot-chat",
+                "GoogleCloudTools.cloudcode"
+            ]
+        }
+    }
+
+	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "devcontainer"
+}

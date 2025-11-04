@@ -3,5 +3,5 @@ git+https://github.com/tercen/tercen_python_client@0.12.12
 # dependencies used by the operator
 numpy
 pandas
-anndata
-scimap
+anndata>=0.8.0
+scimap>=2.0.0

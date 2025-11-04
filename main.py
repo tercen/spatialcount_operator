@@ -3,12 +3,13 @@
 Performs a spatial count using neighbourhood analysis. It counts the frequency 
 of neighbour cluster per cell using either radius or knn method.
 
-Based on the scimap spatial_count concept but implemented with scikit-learn.
+Uses the scimap library's spatial_count function.
 """
 
 import numpy as np
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
+import anndata as ad
+import scimap as sm
 from tercen.client import context as ctx
 
 # For local testing, uncomment and provide your credentials:
@@ -59,56 +60,68 @@ df['colors'] = df[cluster_col]
 # This handles cases where the same cell appears multiple times in the input
 df_unique = df.drop_duplicates(subset=[label_col, '.ci', '.ri'], keep='first')
 
-# Get all unique phenotypes across the dataset
-all_phenotypes = df_unique['colors'].unique()
+# Prepare data for scimap: need X_centroid, Y_centroid, and imageid
+df_unique = df_unique.rename(columns={'.x': 'X_centroid', '.y': 'Y_centroid'})
+df_unique['imageid'] = df_unique['.ci'].astype(str) + '_' + df_unique['.ri'].astype(str)
 
-# Compute spatial counts per image group (.ci, .ri represent column/row grouping in crosstab)
-# Within each group, we analyze spatial neighbors for each cell
+# Create AnnData object for scimap
+# Extract marker data (if any numeric columns exist, otherwise use dummy data)
+numeric_cols = df_unique.select_dtypes(include=[np.number]).columns.tolist()
+# Remove coordinate and index columns
+exclude_cols = ['X_centroid', 'Y_centroid', '.ci', '.ri', label_col]
+marker_cols = [col for col in numeric_cols if col not in exclude_cols]
+
+if len(marker_cols) > 0:
+    data_matrix = df_unique[marker_cols].values
+else:
+    # Create dummy data if no markers available
+    data_matrix = np.zeros((len(df_unique), 1))
+
+# Create metadata dataframe
+obs_data = df_unique[[label_col, 'colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
+obs_data.index = obs_data.index.astype(str)
+
+# Create AnnData object
+adata = ad.AnnData(X=data_matrix, obs=obs_data)
+
+# Run scimap spatial_count
+adata = sm.tl.spatial_count(
+    adata, 
+    phenotype='colors',
+    method=method,
+    radius=radius if method == 'radius' else None,
+    knn=int(knn) if method == 'knn' else None,
+    imageid='imageid',
+    x_coordinate='X_centroid',
+    y_coordinate='Y_centroid',
+    label='spatial_count'
+)
+
+# Extract results from adata.uns['spatial_count']
+spatial_count_df = adata.uns['spatial_count']
+
+# Merge with original data to get .ci and .ri back
+spatial_count_df = spatial_count_df.merge(
+    obs_data[[label_col, '.ci', '.ri']], 
+    left_index=True, 
+    right_index=True,
+    how='left'
+)
+
+# Reshape from wide to long format for Tercen
+# The spatial_count result has columns for each phenotype
+phenotype_cols = [col for col in spatial_count_df.columns if col not in [label_col, '.ci', '.ri']]
+
 results = []
-
-for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
-    if len(group) < 2:
-        continue
-    
-    coords = group[['.x', '.y']].to_numpy(dtype=float)
-    
-    if method == 'knn':
-        n_neighbors = min(knn + 1, len(group))
-        nn = NearestNeighbors(n_neighbors=n_neighbors, algorithm='auto').fit(coords)
-        distances, indices = nn.kneighbors(coords)
-        # Remove self (first neighbor)
-        neighbor_idx = [inds[1:] for inds in indices]
-    else:  # radius
-        nn = NearestNeighbors(radius=radius, algorithm='auto').fit(coords)
-        distances, indices = nn.radius_neighbors(coords)
-        # Remove self from neighbors
-        neighbor_idx = [inds[inds != i] for i, inds in enumerate(indices)]
-    
-    # Count phenotype frequencies for each cell
-    # Reset index to use positional indexing within this group
-    group_reset = group.reset_index(drop=True)
-    for i, neigh in enumerate(neighbor_idx):
-        # Use the actual label value from the input data
-        cell_label = group_reset.iloc[i][label_col]
-        
-        # Get phenotypes of neighbors
-        if len(neigh) == 0:
-            neigh_phenotypes = pd.Series([], dtype=object)
-        else:
-            neigh_phenotypes = group_reset.iloc[neigh]['colors']
-        
-        counts = neigh_phenotypes.value_counts()
-        
-        # Add a row for each possible phenotype (with count 0 if not found)
-        for phenotype in all_phenotypes:
-            count = counts.get(phenotype, 0)
-            results.append({
-                '.ci': ci,
-                '.ri': ri,
-                label_col: cell_label,
-                'name_neigbours': phenotype,
-                'count_neighbours': float(count)
-            })
+for idx, row in spatial_count_df.iterrows():
+    for phenotype in phenotype_cols:
+        results.append({
+            '.ci': row['.ci'],
+            '.ri': row['.ri'],
+            label_col: row[label_col],
+            'name_neigbours': phenotype,
+            'count_neighbours': float(row[phenotype])
+        })
 
 # Create result dataframe
 result_df = pd.DataFrame(results)

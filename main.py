@@ -95,7 +95,7 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
                 '.ri': ri,
                 label_col: cell_label,
                 'name_neigbours': None,
-                'count_neighbours': 0
+                'count_neighbours': 0.0
             })
             continue
         
@@ -109,7 +109,7 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
                 '.ri': ri,
                 label_col: cell_label,
                 'name_neigbours': phenotype,
-                'count_neighbours': int(count)
+                'count_neighbours': float(count)
             })
 
 # Create result dataframe

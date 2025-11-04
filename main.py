@@ -115,6 +115,10 @@ for (ci, ri), group in df_unique.groupby(['.ci', '.ri']):
 # Create result dataframe
 result_df = pd.DataFrame(results)
 
+# Ensure .ci and .ri are integers as required by Tercen
+result_df['.ci'] = result_df['.ci'].astype(np.int32)
+result_df['.ri'] = result_df['.ri'].astype(np.int32)
+
 # Add namespace and save
 result_df = tercenCtx.add_namespace(result_df)
 tercenCtx.save(result_df)

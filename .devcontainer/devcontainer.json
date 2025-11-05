@@ -3,6 +3,9 @@
 	"name": "Tercen Operator Runtime",
   	"image": "tercen/tercen-code-py39:3.9.17-3",
 
+	// Increase memory allocation for large datasets
+	"runArgs": ["--memory=8g", "--memory-swap=8g"],
+
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 

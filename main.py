@@ -21,7 +21,7 @@ from tercen.client import context as ctx
 #     authToken="YOUR_TOKEN_HERE"
 # )
 
-tercenCtx = ctx.TercenContext()
+# tercenCtx = ctx.TercenContext()
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')

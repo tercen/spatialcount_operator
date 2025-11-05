@@ -1,7 +1,7 @@
 
-# Install scimap and its dependencies first
+# Install scimap first with its dependencies
 scimap>=2.0.0
-anndata>=0.8.0
 
-# Then install tercen client (which may have conflicting version constraints)
+# Install tercen client last
+# Note: Dockerfile installs this with --no-deps to avoid version conflicts
 git+https://github.com/tercen/tercen_python_client@0.12.12

@@ -14,14 +14,14 @@ import gc
 from tercen.client import context as ctx
 
 # For local testing with live Tercen connection, uncomment and provide credentials:
-tercenCtx = ctx.TercenContext(
-    workflowId="94de707ae302da46859f16438936b28e",
-    stepId="68cf2c49-ce90-4dcd-a193-736faa8ed604",
-    serviceUri="https://tercen.com/api/v1",
-    authToken="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3RlcmNlbi5jb20iLCJleHAiOjE3NjQ5MzA1OTEsImRhdGEiOnsiZCI6IiIsInUiOiJmYXJpcy5uYWppIiwiZSI6MTc2NDkzMDU5MTQ1NH19.ETuqKxiqPiwjYDebIoH_09lDlQC0mAkxrSZedKlQVno"
-)
+# tercenCtx = ctx.TercenContext(
+#     workflowId="YOUR_WORKFLOW_ID",
+#     stepId="YOUR_STEP_ID",
+#     serviceUri="https://tercen.com/api/v1",
+#     authToken="YOUR_TOKEN_HERE"
+# )
 
-# tercenCtx = ctx.TercenContext()
+tercenCtx = ctx.TercenContext()
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')

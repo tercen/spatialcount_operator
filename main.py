@@ -136,9 +136,21 @@ result_df = pd.concat(results, ignore_index=True)
 del results
 gc.collect()
 
-# Add .ri column (set to 0 since spatial results are per-cell, not per-marker)
-# Tercen requires both .ci and .ri for proper data integration
-result_df['.ri'] = 0
+# Expand results to all .ri values (one result per cell per marker)
+# Get the number of rows (markers) from the original data
+n_rows = tercenCtx.rselect(df_lib="pandas").shape[0] if hasattr(tercenCtx, 'rselect') else 1
+
+# Create a row for each .ci and .ri combination
+expanded_results = []
+for _, row in result_df.iterrows():
+    for ri in range(n_rows):
+        new_row = row.copy()
+        new_row['.ri'] = ri
+        expanded_results.append(new_row)
+
+result_df = pd.DataFrame(expanded_results)
+del expanded_results
+gc.collect()
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)

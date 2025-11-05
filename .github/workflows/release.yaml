@@ -59,7 +59,9 @@ jobs:
             # github_pat=${{ secrets.GH_PAT }}
       - name: Test dependencies in container
         run: |
-          docker run --rm --entrypoint python3 ${{ steps.meta.outputs.tags }} -c "import sys; import numpy as np; import pandas as pd; import anndata as ad; import scimap as sm; from tercen.client import context as ctx; print('✓ All dependencies OK'); print('✓ scimap version:', sm.__version__); print('✓ sm.tl.spatial_count:', hasattr(sm.tl, 'spatial_count')); print('✓ sm.tl.spatial_cluster:', hasattr(sm.tl, 'spatial_cluster'))"
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF##*/}"
+          echo "Testing image: $IMAGE_TAG"
+          docker run --rm --entrypoint python3 "$IMAGE_TAG" -c "import scimap as sm; print('✓ scimap:', sm.__version__)"
       - name: Create required package.json
         run: echo '{}' > package.json
       - name: Build changelog

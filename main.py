@@ -45,19 +45,28 @@ if len(col_names) >= 4:
 else:
     raise RuntimeError(f"Expected at least 4 column factors. Found: {col_names}")
 
-# Get color column name (colors are per-cell, stored in column factors)
+# Get color column name
 color_col_names = tercenCtx.colors
-color_col = color_col_names[0] if isinstance(color_col_names, list) else color_col_names
+if color_col_names:
+    color_col = color_col_names[0] if isinstance(color_col_names, list) else color_col_names
+else:
+    raise RuntimeError("No color projection found. Please assign cluster/phenotype data to colors.")
 
 # CRITICAL MEMORY OPTIMIZATION:
-# Colors are stored in the column table (per-cell), NOT in the main crosstab (per-cell-per-marker)
-# Using cselect instead of select avoids loading the massive crosstab with all markers
-# This reduces memory from O(cells * markers) to O(cells)
+# Load ONLY the color column from main table, then collapse per cell
+# This avoids loading all marker data while still getting colors from main table
+# Reduces memory from O(cells * markers) to O(cells)
+color_df = tercenCtx.select(['.ci', color_col], df_lib="pandas")
+# Group by .ci to get one color value per cell (colors are same across all markers for a cell)
+color_df = color_df.groupby('.ci', as_index=False).first()
+
+# Build dataframe from column factors
 col_df_reset = col_df.reset_index()
 col_df_reset['.ci'] = col_df_reset.index
 
-# Build dataframe with only the columns we need for spatial analysis
-df = col_df_reset[['.ci', imageid_col, cellid_col, x_col, y_col, color_col]].copy()
+# Merge column factors with color data
+df = col_df_reset[['.ci', imageid_col, cellid_col, x_col, y_col]].copy()
+df = df.merge(color_df, on='.ci', how='left')
 
 # Rename for scimap
 df.rename(columns={

@@ -13,21 +13,24 @@ import scimap as sm
 import gc
 from tercen.client import context as ctx
 
-# For local testing with live Tercen connection, uncomment and provide credentials:
-# tercenCtx = ctx.TercenContext(
-#     workflowId="YOUR_WORKFLOW_ID",
-#     stepId="YOUR_STEP_ID",
-#     serviceUri="https://tercen.com/api/v1",
-#     authToken="YOUR_TOKEN_HERE"
-# )
-
-# tercenCtx = ctx.TercenContext()
+# Initialize Tercen context
+tercenCtx = ctx.TercenContext()
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')
 radius = tercenCtx.operator_property('radius', typeFn=float, default=80.0)
 knn = tercenCtx.operator_property('knn', typeFn=int, default=10)
 n_clusters = tercenCtx.operator_property('n_clusters', typeFn=int, default=8)
+
+# Validate parameters
+if method not in ['radius', 'knn']:
+    raise ValueError(f"method must be 'radius' or 'knn', got '{method}'")
+if radius <= 0:
+    raise ValueError(f"radius must be positive, got {radius}")
+if knn < 1:
+    raise ValueError(f"knn must be >= 1, got {knn}")
+if n_clusters < 2:
+    raise ValueError(f"n_clusters must be >= 2, got {n_clusters}")
 
 # Get only essential columns to minimize memory
 df = tercenCtx.select(['.ci', '.ri'], df_lib="pandas")

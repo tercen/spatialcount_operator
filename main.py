@@ -13,14 +13,14 @@ import scimap as sm
 from tercen.client import context as ctx
 
 # For local testing with live Tercen connection, uncomment and provide credentials:
-# tercenCtx = ctx.TercenContext(
-#     workflowId="YOUR_WORKFLOW_ID",
-#     stepId="YOUR_STEP_ID",
-#     serviceUri="https://tercen.com/api/v1",
-#     authToken="YOUR_TOKEN_HERE"
-# )
+tercenCtx = ctx.TercenContext(
+    workflowId="94de707ae302da46859f16438936b28e",
+    stepId="68cf2c49-ce90-4dcd-a193-736faa8ed604",
+    serviceUri="https://tercen.com/api/v1",
+    authToken="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3RlcmNlbi5jb20iLCJleHAiOjE3NjQ5MzA1OTEsImRhdGEiOnsiZCI6IiIsInUiOiJmYXJpcy5uYWppIiwiZSI6MTc2NDkzMDU5MTQ1NH19.ETuqKxiqPiwjYDebIoH_09lDlQC0mAkxrSZedKlQVno"
+)
 
-tercenCtx = ctx.TercenContext()
+# tercenCtx = ctx.TercenContext()
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')
@@ -71,46 +71,56 @@ df['imageid'] = df['imageid'].astype(str)
 # Remove duplicates
 df.drop_duplicates(subset=['.ci', '.ri'], keep='first', inplace=True)
 
-# Create AnnData object for scimap (minimal memory footprint)
-# Use dummy data matrix since we only need spatial info
-data_matrix = np.zeros((len(df), 1), dtype=np.float32)
+# Process each image separately to reduce memory usage
+results = []
+unique_images = df['imageid'].unique()
 
-# Create metadata with only required columns
-obs_data = df[['colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
-obs_data.index = obs_data.index.astype(str)
-
-# Create AnnData object
-adata = ad.AnnData(X=data_matrix, obs=obs_data)
-
-# Run scimap spatial_count
-adata = sm.tl.spatial_count(
-    adata, 
-    phenotype='colors',
-    method=method,
-    radius=radius if method == 'radius' else None,
-    knn=int(knn) if method == 'knn' else None,
-    imageid='imageid',
-    x_coordinate='X_centroid',
-    y_coordinate='Y_centroid',
-    label='spatial_count'
-)
-
-# Check if spatial_count has any data
-if adata.uns['spatial_count'].shape[1] > 0:
-    # Cluster the spatial_count results using k-means to identify neighbourhood regions
-    adata = sm.tl.spatial_cluster(
+for img in unique_images:
+    # Filter data for this image only
+    img_df = df[df['imageid'] == img].copy()
+    
+    # Create minimal AnnData object for this image
+    data_matrix = np.zeros((len(img_df), 1), dtype=np.float32)
+    obs_data = img_df[['colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
+    obs_data.index = obs_data.index.astype(str)
+    
+    adata = ad.AnnData(X=data_matrix, obs=obs_data)
+    
+    # Run spatial_count for this image
+    adata = sm.tl.spatial_count(
         adata, 
-        df_name='spatial_count', 
-        method='kmeans', 
-        k=n_clusters, 
-        label='neighbourhood_cluster'
+        phenotype='colors',
+        method=method,
+        radius=radius if method == 'radius' else None,
+        knn=int(knn) if method == 'knn' else None,
+        imageid='imageid',
+        x_coordinate='X_centroid',
+        y_coordinate='Y_centroid',
+        label='spatial_count'
     )
-    # Extract the neighbourhood cluster assignments from adata.obs
-    result_df = adata.obs[['.ci', '.ri', 'neighbourhood_cluster']].copy()
-else:
-    # Return just the cell identifiers without clustering
-    result_df = obs_data[['.ci', '.ri']].copy()
-    result_df['neighbourhood_cluster'] = 0
+    
+    # Check if spatial_count has data
+    if adata.uns['spatial_count'].shape[1] > 0:
+        # Cluster for this image
+        adata = sm.tl.spatial_cluster(
+            adata, 
+            df_name='spatial_count', 
+            method='kmeans', 
+            k=n_clusters, 
+            label='neighbourhood_cluster'
+        )
+        img_result = adata.obs[['.ci', '.ri', 'neighbourhood_cluster']].copy()
+    else:
+        img_result = obs_data[['.ci', '.ri']].copy()
+        img_result['neighbourhood_cluster'] = 0
+    
+    results.append(img_result)
+    
+    # Clean up to free memory
+    del adata, data_matrix, obs_data, img_df
+
+# Combine results from all images
+result_df = pd.concat(results, ignore_index=True)
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)

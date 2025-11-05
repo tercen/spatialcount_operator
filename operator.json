@@ -4,7 +4,7 @@
     "tags": ["spatial","scimap","neighbours"],
     "authors": ["tercen"],
     "urls": ["https://github.com/tercen/spatialcount_operator"],
-    "container":"ghcr.io/tercen/spatialcount_operator:0.0.3",
+    "container":"ghcr.io/tercen/spatialcount_operator:0.1.0",
     "properties": [
         {
             "kind": "EnumeratedProperty",

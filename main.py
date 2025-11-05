@@ -14,7 +14,10 @@ import gc
 from tercen.client import context as ctx
 
 # Initialize Tercen context
-tercenCtx = ctx.TercenContext()
+try:
+    tercenCtx = ctx.TercenContext()
+except Exception as e:
+    raise RuntimeError(f"Failed to initialize Tercen context: {e}")
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')

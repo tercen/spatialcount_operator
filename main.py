@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import anndata as ad
 import scimap as sm
+import gc
 from tercen.client import context as ctx
 
 # For local testing with live Tercen connection, uncomment and provide credentials:
@@ -117,10 +118,13 @@ for img in unique_images:
     results.append(img_result)
     
     # Clean up to free memory
-    del adata, data_matrix, obs_data, img_df
+    del adata, data_matrix, obs_data, img_df, img_result
+    gc.collect()
 
 # Combine results from all images
 result_df = pd.concat(results, ignore_index=True)
+del results
+gc.collect()
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)

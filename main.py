@@ -24,53 +24,65 @@ tercenCtx = ctx.TercenContext()
 
 # Get operator properties
 method = tercenCtx.operator_property('method', typeFn=str, default='radius')
-radius = tercenCtx.operator_property('radius', typeFn=float, default=30.0)
+radius = tercenCtx.operator_property('radius', typeFn=float, default=80.0)
 knn = tercenCtx.operator_property('knn', typeFn=int, default=10)
 n_clusters = tercenCtx.operator_property('n_clusters', typeFn=int, default=8)
 
-# Get all available data from Tercen
+# Get all data including colors
 df = tercenCtx.select(df_lib="pandas")
 
-# Map columns - look for cluster/phenotype column and label column
-# Common patterns: ds3.cluster_id, cluster_id, phenotype, colors
-cluster_col = None
-for col in df.columns:
-    if 'cluster' in col.lower() or 'phenotype' in col.lower() or col == 'colors':
-        cluster_col = col
-        break
+# Get column factors in order: [imageid, cellid, y_coordinate, x_coordinate]
+# Based on Tercen projection order: filename, Object, centroid-0, centroid-1
+col_df = tercenCtx.cselect(df_lib="pandas")
+col_df['.ci'] = col_df.index
 
-if cluster_col is None:
-    raise RuntimeError(f"Could not find cluster/phenotype column. Available columns: {df.columns.tolist()}")
+# Get column names in order (excluding .ci which we added)
+col_names = [c for c in col_df.columns if c != '.ci']
 
-# Look for label column (cell_id)
-# Common patterns: Object, label, cell_id, id
-label_col = None
-for col in df.columns:
-    if col == 'Object' or 'label' in col.lower() or col == 'cell_id' or col == 'id':
-        label_col = col
-        break
+if len(col_names) >= 4:
+    # Use positional mapping based on order
+    # Order: filename, Object, centroid-0 (X), centroid-1 (Y)
+    imageid_col = col_names[0]  # filename
+    cellid_col = col_names[1]   # Object
+    x_col = col_names[2]         # centroid-0 (X coordinate)
+    y_col = col_names[3]         # centroid-1 (Y coordinate)
+else:
+    raise RuntimeError(f"Expected at least 4 column factors. Found: {col_names}")
 
-if label_col is None:
-    raise RuntimeError(f"Could not find label column. Available columns: {df.columns.tolist()}")
+# Merge column data
+df = df.merge(col_df, on='.ci', how='left')
 
-# Keep the actual column names from the data for output relation
-# Just create a 'colors' alias for easier processing in the loop
-df['colors'] = df[cluster_col]
+# Get cluster/phenotype info from colors projection
+# tercenCtx.colors returns the column name(s) used for colors
+color_col_names = tercenCtx.colors
+if isinstance(color_col_names, list) and len(color_col_names) > 0:
+    color_col = color_col_names[0]
+elif isinstance(color_col_names, str):
+    color_col = color_col_names
+else:
+    raise RuntimeError(f"Could not determine color column from tercenCtx.colors: {color_col_names}")
 
-# Remove duplicate rows - keep only one row per unique cell (Object)
-# This handles cases where the same cell appears multiple times in the input
-df_unique = df.drop_duplicates(subset=[label_col, '.ci', '.ri'], keep='first')
+# The color data is already in the dataframe
+if color_col in df.columns:
+    df['colors'] = df[color_col].astype(str)
+else:
+    raise RuntimeError(f"Color column '{color_col}' not found in dataframe. Available: {df.columns.tolist()}")
 
-# Prepare data for scimap: need X_centroid, Y_centroid, and imageid
-df_unique = df_unique.rename(columns={'.x': 'X_centroid', '.y': 'Y_centroid'})
-df_unique['imageid'] = df_unique['.ci'].astype(str) + '_' + df_unique['.ri'].astype(str)
+# Prepare data for scimap
+df['X_centroid'] = df[x_col]
+df['Y_centroid'] = df[y_col]
+df['imageid'] = df[imageid_col].astype(str)
+df['cell_id'] = df[cellid_col]
+
+# Remove duplicate rows
+df_unique = df.drop_duplicates(subset=['.ci', '.ri'], keep='first')
 
 # Create AnnData object for scimap
-# Extract marker data (if any numeric columns exist, otherwise use dummy data)
+# Extract marker expression data from the main table
+# Get numeric columns that are likely markers (exclude coordinates, indices, labels)
 numeric_cols = df_unique.select_dtypes(include=[np.number]).columns.tolist()
-# Remove coordinate and index columns
-exclude_cols = ['X_centroid', 'Y_centroid', '.ci', '.ri', label_col]
-marker_cols = [col for col in numeric_cols if col not in exclude_cols]
+exclude_cols = ['X_centroid', 'Y_centroid', '.ci', '.ri', 'cell_id', x_col, y_col]
+marker_cols = [col for col in numeric_cols if col not in exclude_cols and not col.startswith('.')]
 
 if len(marker_cols) > 0:
     data_matrix = df_unique[marker_cols].values
@@ -79,8 +91,12 @@ else:
     data_matrix = np.zeros((len(df_unique), 1))
 
 # Create metadata dataframe
-obs_data = df_unique[[label_col, 'colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
+obs_data = df_unique[['colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
 obs_data.index = obs_data.index.astype(str)
+obs_data['cell_id'] = obs_data['.ci']
+
+# Ensure colors is string type
+obs_data['colors'] = obs_data['colors'].astype(str)
 
 # Create AnnData object
 adata = ad.AnnData(X=data_matrix, obs=obs_data)
@@ -98,17 +114,22 @@ adata = sm.tl.spatial_count(
     label='spatial_count'
 )
 
-# Cluster the spatial_count results using k-means to identify neighbourhood regions
-adata = sm.tl.spatial_cluster(
-    adata, 
-    df_name='spatial_count', 
-    method='kmeans', 
-    k=n_clusters, 
-    label='neighbourhood_cluster'
-)
-
-# Extract the neighbourhood cluster assignments from adata.obs
-result_df = adata.obs[[label_col, '.ci', '.ri', 'neighbourhood_cluster']].copy()
+# Check if spatial_count has any data
+if adata.uns['spatial_count'].shape[1] > 0:
+    # Cluster the spatial_count results using k-means to identify neighbourhood regions
+    adata = sm.tl.spatial_cluster(
+        adata, 
+        df_name='spatial_count', 
+        method='kmeans', 
+        k=n_clusters, 
+        label='neighbourhood_cluster'
+    )
+    # Extract the neighbourhood cluster assignments from adata.obs
+    result_df = adata.obs[['.ci', '.ri', 'neighbourhood_cluster']].copy()
+else:
+    # Return just the cell identifiers without clustering
+    result_df = obs_data[['.ci', '.ri']].copy()
+    result_df['neighbourhood_cluster'] = 0
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)
@@ -117,17 +138,6 @@ result_df['.ri'] = result_df['.ri'].astype(np.int32)
 # Add namespace and save
 result_df = tercenCtx.add_namespace(result_df)
 
-# Try to save to Tercen, fallback to CSV if in dev mode
-try:
-    tercenCtx.save(result_df)
-    print("✓ Successfully saved to Tercen")
-except AttributeError as e:
-    if "'OperatorContextDev' object has no attribute 'session'" in str(e):
-        print("⚠ Running in dev mode - saving to CSV instead")
-        result_df.to_csv('operator_output.csv', index=False)
-        print(f"✓ Saved {len(result_df)} rows to operator_output.csv")
-        print(f"Columns: {result_df.columns.tolist()}")
-        print(f"Sample:\n{result_df.head(10)}")
-    else:
-        raise
+# Save to Tercen
+tercenCtx.save(result_df)
 

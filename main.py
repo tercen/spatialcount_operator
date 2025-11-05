@@ -12,7 +12,7 @@ import anndata as ad
 import scimap as sm
 from tercen.client import context as ctx
 
-# For local testing, uncomment and provide your credentials:
+# For local testing with live Tercen connection, uncomment and provide credentials:
 # tercenCtx = ctx.TercenContext(
 #     workflowId="YOUR_WORKFLOW_ID",
 #     stepId="YOUR_STEP_ID",
@@ -116,5 +116,18 @@ result_df['.ri'] = result_df['.ri'].astype(np.int32)
 
 # Add namespace and save
 result_df = tercenCtx.add_namespace(result_df)
-tercenCtx.save(result_df)
+
+# Try to save to Tercen, fallback to CSV if in dev mode
+try:
+    tercenCtx.save(result_df)
+    print("✓ Successfully saved to Tercen")
+except AttributeError as e:
+    if "'OperatorContextDev' object has no attribute 'session'" in str(e):
+        print("⚠ Running in dev mode - saving to CSV instead")
+        result_df.to_csv('operator_output.csv', index=False)
+        print(f"✓ Saved {len(result_df)} rows to operator_output.csv")
+        print(f"Columns: {result_df.columns.tolist()}")
+        print(f"Sample:\n{result_df.head(10)}")
+    else:
+        raise
 

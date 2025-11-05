@@ -35,10 +35,7 @@ if knn < 1:
 if n_clusters < 2:
     raise ValueError(f"n_clusters must be >= 2, got {n_clusters}")
 
-# Get only essential columns to minimize memory
-df = tercenCtx.select(['.ci', '.ri'], df_lib="pandas")
-
-# Get column factors
+# Get column factors (this is per-cell data, much smaller than crosstab)
 col_df = tercenCtx.cselect(df_lib="pandas")
 col_names = col_df.columns.tolist()
 
@@ -48,20 +45,19 @@ if len(col_names) >= 4:
 else:
     raise RuntimeError(f"Expected at least 4 column factors. Found: {col_names}")
 
-# Get color column name
+# Get color column name (colors are per-cell, stored in column factors)
 color_col_names = tercenCtx.colors
 color_col = color_col_names[0] if isinstance(color_col_names, list) else color_col_names
 
-# Select only needed columns from main data
-needed_cols = ['.ci', '.ri', color_col]
-df = tercenCtx.select(needed_cols, df_lib="pandas")
-
-# Add column factors directly (avoid merge for memory efficiency)
+# CRITICAL MEMORY OPTIMIZATION:
+# Colors are stored in the column table (per-cell), NOT in the main crosstab (per-cell-per-marker)
+# Using cselect instead of select avoids loading the massive crosstab with all markers
+# This reduces memory from O(cells * markers) to O(cells)
 col_df_reset = col_df.reset_index()
 col_df_reset['.ci'] = col_df_reset.index
 
-# Merge only needed column data
-df = df.merge(col_df_reset[['.ci', imageid_col, cellid_col, x_col, y_col]], on='.ci', how='left')
+# Build dataframe with only the columns we need for spatial analysis
+df = col_df_reset[['.ci', imageid_col, cellid_col, x_col, y_col, color_col]].copy()
 
 # Rename for scimap
 df.rename(columns={
@@ -75,8 +71,7 @@ df.rename(columns={
 df['colors'] = df['colors'].astype(str)
 df['imageid'] = df['imageid'].astype(str)
 
-# Remove duplicates
-df.drop_duplicates(subset=['.ci', '.ri'], keep='first', inplace=True)
+# No duplicates to remove since we're working with per-cell data (not per-cell-per-marker)
 
 # Process each image separately to reduce memory usage
 results = []
@@ -88,7 +83,7 @@ for img in unique_images:
     
     # Create minimal AnnData object for this image
     data_matrix = np.zeros((len(img_df), 1), dtype=np.float32)
-    obs_data = img_df[['colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci', '.ri']].copy()
+    obs_data = img_df[['colors', 'imageid', 'X_centroid', 'Y_centroid', '.ci']].copy()
     obs_data.index = obs_data.index.astype(str)
     
     adata = ad.AnnData(X=data_matrix, obs=obs_data)
@@ -116,9 +111,9 @@ for img in unique_images:
             k=n_clusters, 
             label='neighbourhood_cluster'
         )
-        img_result = adata.obs[['.ci', '.ri', 'neighbourhood_cluster']].copy()
+        img_result = adata.obs[['.ci', 'neighbourhood_cluster']].copy()
     else:
-        img_result = obs_data[['.ci', '.ri']].copy()
+        img_result = obs_data[['.ci']].copy()
         img_result['neighbourhood_cluster'] = 0
     
     results.append(img_result)
@@ -131,6 +126,10 @@ for img in unique_images:
 result_df = pd.concat(results, ignore_index=True)
 del results
 gc.collect()
+
+# Add .ri column (set to 0 since spatial results are per-cell, not per-marker)
+# Tercen requires both .ci and .ri for proper data integration
+result_df['.ri'] = 0
 
 # Ensure .ci and .ri are integers as required by Tercen
 result_df['.ci'] = result_df['.ci'].astype(np.int32)

@@ -1,13 +1,16 @@
 {
     "kind": "OperatorUnitTest",
-    "name": "test",
+    "name": "spatial_count_test",
     "namespace": "ds0",
-    "inputDataUri": "hospitals.csv",
-    "outputDataUri": ["Table_1.csv","Table_2.csv","Table_3.csv"],
-    "columns": ["Rating.Imaging"],
-    "rows": ["Rating.Effectiveness"],
-    "colors": ["Facility.Type"],
-    "labels": ["Facility.Name"],
-    "yAxis": "Procedure.Hip Knee.Cost",
-    "xAxis": ""
+    "inputDataUri": "spatial_input.csv",
+    "outputDataUri": ["expected_output.csv"],
+    "columns": ["filename", "Object", "centroid-0", "centroid-1"],
+    "rows": ["CD3", "CD4", "CD8", "CD20", "CD68"],
+    "colors": ["phenotype"],
+    "yAxis": "expression",
+    "properties": {
+        "method": "radius",
+        "radius": 10.0,
+        "n_clusters": 3
+    }
   }
